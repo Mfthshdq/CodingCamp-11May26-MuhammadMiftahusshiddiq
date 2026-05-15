@@ -80,6 +80,7 @@ main {
    ============================================================ */
 #balance-section,
 #form-section,
+#categories-section,
 #limit-section,
 #sort-section,
 #list-section,
@@ -385,6 +386,83 @@ select {
 #chart-empty-message {
   color: var(--text-secondary);
   text-align: center;
+}
+
+/* ============================================================
+   Custom Categories section
+   ============================================================ */
+#categories-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#add-category-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+#add-category-row input {
+  flex: 1;
+  width: auto;
+}
+
+#add-category-row button {
+  flex-shrink: 0;
+  width: auto;
+  padding: 8px 20px;
+}
+
+/* Tag list */
+#category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.category-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  padding: 4px 12px;
+  line-height: 1.4;
+}
+
+/* Default (built-in) categories — muted, no delete button */
+.category-tag--default {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+/* Custom categories — accented */
+.category-tag--custom {
+  background-color: var(--accent-color);
+  border: 1px solid transparent;
+  color: #ffffff;
+}
+
+/* Delete button inside a custom tag */
+.category-tag__delete {
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  min-height: unset;
+  min-width: unset;
+  opacity: 0.8;
+  padding: 0 2px;
+  transition: opacity 0.2s;
+}
+
+.category-tag__delete:hover {
+  opacity: 1;
 }
 
 /* ==========================================================================

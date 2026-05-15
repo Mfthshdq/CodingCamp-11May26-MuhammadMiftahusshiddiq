@@ -5,10 +5,11 @@
   const KEYS = {
     TRANSACTIONS: 'ebv_transactions',
     SPENDING_LIMIT: 'ebv_spending_limit',
-    THEME: 'ebv_theme'
+    THEME: 'ebv_theme',
+    CATEGORIES: 'ebv_categories'
   };
 
-  const CATEGORIES = ['Food', 'Transport', 'Fun'];
+  const DEFAULT_CATEGORIES = ['Food', 'Transport', 'Fun'];
 
   const SORT_OPTIONS = {
     DEFAULT: 'default',
@@ -22,8 +23,14 @@
     transactions: [],      // Transaction[]
     spendingLimit: null,   // number | null
     theme: 'light',        // 'light' | 'dark'
-    sortOption: 'default'  // SortOption
+    sortOption: 'default', // SortOption
+    customCategories: []   // string[] — user-defined categories
   };
+
+  // Returns the full merged category list (defaults + custom)
+  function allCategories() {
+    return DEFAULT_CATEGORIES.concat(state.customCategories);
+  }
 
   // ── Storage ────────────────────────────────────────────────────────────────
 
@@ -63,6 +70,13 @@
     } catch (e) {
       state.theme = 'light';
     }
+
+    try {
+      const raw = localStorage.getItem(KEYS.CATEGORIES);
+      state.customCategories = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      state.customCategories = [];
+    }
   }
 
   function saveTransactions() {
@@ -88,6 +102,15 @@
       localStorage.setItem(KEYS.THEME, state.theme);
     } catch (e) {
       // Per Req 5.5: apply theme for current session only, do not re-throw
+    }
+  }
+
+  function saveCategories() {
+    try {
+      localStorage.setItem(KEYS.CATEGORIES, JSON.stringify(state.customCategories));
+    } catch (e) {
+      showStorageError('Save failed. Storage may be full or unavailable.');
+      throw e;
     }
   }
 
@@ -126,7 +149,7 @@
       }
     }
 
-    if (!category || !CATEGORIES.includes(category)) {
+    if (!category || !allCategories().includes(category)) {
       errors.category = 'Please select a category.';
     }
 
@@ -226,6 +249,107 @@
   function setSort(option) {
     state.sortOption = option;
     render();
+  }
+
+  // ── Category Management ────────────────────────────────────────────────────
+
+  function addCategory(name) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setFieldError('new-category-error', 'Category name is required.');
+      return false;
+    }
+    if (trimmed.length > 50) {
+      setFieldError('new-category-error', 'Category name must be 50 characters or fewer.');
+      return false;
+    }
+    if (allCategories().some(function (c) { return c.toLowerCase() === trimmed.toLowerCase(); })) {
+      setFieldError('new-category-error', 'That category already exists.');
+      return false;
+    }
+    const previous = state.customCategories.slice();
+    state.customCategories.push(trimmed);
+    try {
+      saveCategories();
+    } catch (e) {
+      state.customCategories = previous;
+      return false;
+    }
+    setFieldError('new-category-error', null);
+    renderCategoryOptions();
+    renderCategoryTags();
+    return true;
+  }
+
+  function deleteCategory(name) {
+    // Prevent deleting a category that is in use
+    var inUse = state.transactions.some(function (t) { return t.category === name; });
+    if (inUse) {
+      setFieldError('new-category-error', '"' + escapeHtml(name) + '" is used by existing transactions and cannot be deleted.');
+      return;
+    }
+    const previous = state.customCategories.slice();
+    state.customCategories = state.customCategories.filter(function (c) { return c !== name; });
+    try {
+      saveCategories();
+    } catch (e) {
+      state.customCategories = previous;
+      return;
+    }
+    setFieldError('new-category-error', null);
+    renderCategoryOptions();
+    renderCategoryTags();
+  }
+
+  function renderCategoryOptions() {
+    var select = document.getElementById('category');
+    if (!select) return;
+    var current = select.value;
+    select.innerHTML = '<option value="">Select category</option>';
+    allCategories().forEach(function (cat) {
+      var opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      select.appendChild(opt);
+    });
+    // Restore selection if still valid
+    if (current && allCategories().includes(current)) {
+      select.value = current;
+    }
+  }
+
+  function renderCategoryTags() {
+    var container = document.getElementById('category-tags');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Default categories — shown as plain non-deletable tags
+    DEFAULT_CATEGORIES.forEach(function (cat) {
+      var tag = document.createElement('span');
+      tag.className = 'category-tag category-tag--default';
+      tag.textContent = cat;
+      container.appendChild(tag);
+    });
+
+    // Custom categories — shown with a delete button
+    state.customCategories.forEach(function (cat) {
+      var tag = document.createElement('span');
+      tag.className = 'category-tag category-tag--custom';
+
+      var label = document.createElement('span');
+      label.textContent = cat;
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'category-tag__delete';
+      btn.setAttribute('aria-label', 'Delete category ' + cat);
+      btn.textContent = '✕';
+      btn.dataset.category = cat;
+
+      tag.appendChild(label);
+      tag.appendChild(btn);
+      container.appendChild(tag);
+    });
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
@@ -499,6 +623,40 @@
         if (banner) banner.setAttribute('hidden', '');
       });
     }
+
+    // Add custom category
+    var addCategoryBtn = document.getElementById('add-category-btn');
+    if (addCategoryBtn) {
+      addCategoryBtn.addEventListener('click', function () {
+        var input = document.getElementById('new-category');
+        if (!input) return;
+        var added = addCategory(input.value);
+        if (added) input.value = '';
+      });
+    }
+
+    // Allow pressing Enter in the new-category input
+    var newCategoryInput = document.getElementById('new-category');
+    if (newCategoryInput) {
+      newCategoryInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          var added = addCategory(newCategoryInput.value);
+          if (added) newCategoryInput.value = '';
+        }
+      });
+    }
+
+    // Delete custom category — event delegation on the tags container
+    var tagsContainer = document.getElementById('category-tags');
+    if (tagsContainer) {
+      tagsContainer.addEventListener('click', function (e) {
+        var btn = e.target.closest('.category-tag__delete');
+        if (btn && btn.dataset.category) {
+          deleteCategory(btn.dataset.category);
+        }
+      });
+    }
   }
 
   function setFieldError(elementId, message) {
@@ -538,6 +696,8 @@
     }
 
     initChart();
+    renderCategoryOptions();
+    renderCategoryTags();
     render();
     bindEvents();
   }
