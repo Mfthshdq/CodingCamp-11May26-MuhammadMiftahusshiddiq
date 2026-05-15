@@ -44,14 +44,10 @@
   function loadState() {
     try {
       const raw = localStorage.getItem(KEYS.TRANSACTIONS);
-      if (raw === null) {
-        state.transactions = [];
-      } else {
-        state.transactions = JSON.parse(raw);
-      }
+      state.transactions = raw ? JSON.parse(raw) : [];
     } catch (e) {
       state.transactions = [];
-      console.error("Gagal memuat transaksi:", e);
+      showErrorBanner('Unable to load saved data. Storage may be unavailable.');
     }
 
     try {
@@ -61,8 +57,12 @@
       state.spendingLimit = null;
     }
 
-    const savedTheme = localStorage.getItem(KEYS.THEME);
-    state.theme = (savedTheme === 'dark') ? 'dark' : 'light';
+    try {
+      const raw = localStorage.getItem(KEYS.THEME);
+      state.theme = (raw === 'dark') ? 'dark' : 'light';
+    } catch (e) {
+      state.theme = 'light';
+    }
   }
 
   function saveTransactions() {
