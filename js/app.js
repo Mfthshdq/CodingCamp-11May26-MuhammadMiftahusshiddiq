@@ -44,10 +44,14 @@
   function loadState() {
     try {
       const raw = localStorage.getItem(KEYS.TRANSACTIONS);
-      state.transactions = raw ? JSON.parse(raw) : [];
+      if (raw === null) {
+        state.transactions = [];
+      } else {
+        state.transactions = JSON.parse(raw);
+      }
     } catch (e) {
       state.transactions = [];
-      showErrorBanner('Unable to load saved data. Storage may be unavailable.');
+      console.error("Gagal memuat transaksi:", e);
     }
 
     try {
@@ -57,12 +61,8 @@
       state.spendingLimit = null;
     }
 
-    try {
-      const raw = localStorage.getItem(KEYS.THEME);
-      state.theme = (raw === 'dark') ? 'dark' : 'light';
-    } catch (e) {
-      state.theme = 'light';
-    }
+    const savedTheme = localStorage.getItem(KEYS.THEME);
+    state.theme = (savedTheme === 'dark') ? 'dark' : 'light';
   }
 
   function saveTransactions() {
@@ -433,10 +433,8 @@
           return;
         }
 
-        var added = addTransaction(name, parseFloat(amountStr), category);
-        if (added) {
-          form.reset();
-        }
+        addTransaction(name, parseFloat(amountStr), category);
+        form.reset();
       });
     }
 
